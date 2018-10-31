@@ -30,6 +30,34 @@
 #define parent_class gst_mpp_jpeg_enc_parent_class
 G_DEFINE_TYPE (GstMppJpegEnc, gst_mpp_jpeg_enc, GST_TYPE_MPP_VIDEO_ENC);
 
+static GstStaticPadTemplate gst_mpp_jpeg_enc_sink_template =
+    GST_STATIC_PAD_TEMPLATE ("sink",
+    GST_PAD_SINK,
+    GST_PAD_ALWAYS,
+    GST_STATIC_CAPS ("video/x-raw,"
+        "format = (string) NV12, "
+        "width  = (int) [ 96, 8192 ], "
+        "height = (int) [ 32, 8192 ], "
+        "framerate = (fraction) [0/1, 60/1]"
+        ";"
+        "video/x-raw,"
+        "format = (string) I420, "
+        "width  = (int) [ 96, 8192 ], "
+        "height = (int) [ 32, 8192 ], "
+        "framerate = (fraction) [0/1, 60/1]"
+        ";"
+        "video/x-raw,"
+        "format = (string) YUY2, "
+        "width  = (int) [ 96, 8192 ], "
+        "height = (int) [ 32, 8192 ], "
+        "framerate = (fraction) [0/1, 60/1]"
+        ";"
+        "video/x-raw,"
+        "format = (string) UYVY, "
+        "width  = (int) [ 96, 8192 ], "
+        "height = (int) [ 32, 8192 ], "
+        "framerate = (fraction) [0/1, 60/1]" ";"));
+
 static GstStaticPadTemplate gst_mpp_jpeg_enc_src_template =
 GST_STATIC_PAD_TEMPLATE ("src",
     GST_PAD_SRC,
@@ -144,4 +172,6 @@ gst_mpp_jpeg_enc_class_init (GstMppJpegEncClass * klass)
 
   gst_element_class_add_pad_template (element_class,
       gst_static_pad_template_get (&gst_mpp_jpeg_enc_src_template));
+  gst_element_class_add_pad_template (element_class,
+      gst_static_pad_template_get (&gst_mpp_jpeg_enc_sink_template));
 }
