@@ -25,6 +25,14 @@
 
 #include "gstmppjpegenc.h"
 
+#define JPEG_DEFAULT_QUALITY 85
+
+enum
+{
+  PROP_0,
+  PROP_QUALITY
+};
+
 #define GST_CAT_DEFAULT mppvideoenc_debug
 
 #define parent_class gst_mpp_jpeg_enc_parent_class
@@ -71,19 +79,28 @@ GST_STATIC_PAD_TEMPLATE ("src",
 static gboolean
 gst_mpp_jpeg_enc_open (GstVideoEncoder * encoder)
 {
-  GstMppVideoEnc *self = GST_MPP_VIDEO_ENC (encoder);
+  GstMppVideoEnc *mpp_video_enc = GST_MPP_VIDEO_ENC (encoder);
 
-  GST_DEBUG_OBJECT (self, "Opening");
+  GST_DEBUG_OBJECT (mpp_video_enc, "Opening");
 
-  if (mpp_create (&self->mpp_ctx, &self->mpi))
-    goto failure;
-  if (mpp_init (self->mpp_ctx, MPP_CTX_ENC, MPP_VIDEO_CodingMJPEG))
-    goto failure;
+  if (mpp_video_enc->mpi->control (mpp_video_enc->mpp_ctx, MPP_ENC_SET_RC_CFG,
+          &self->rc_cfg)) {
+    GST_DEBUG_OBJECT (self, "Setting rate control for rockchip mpp failed");
+    return FALSE;
+  }
+
+  if (mpp_video_enc->mpi->control (mpp_video_enc->mpp_ctx,
+          MPP_ENC_SET_CODEC_CFG, &self->codec_cfg)) {
+    GST_DEBUG_OBJECT (self, "Setting codec info for rockchip mpp failed");
+    return FALSE;
+  }
+
+  if (mpp_create (&mpp_video_enc->mpp_ctx, &mpp_video_enc->mpi))
+    return FALSE;
+  if (mpp_init (mpp_video_enc->mpp_ctx, MPP_CTX_ENC, MPP_VIDEO_CodingMJPEG))
+    return FALSE;
 
   return TRUE;
-
-failure:
-  return FALSE;
 }
 
 static gboolean
@@ -92,44 +109,22 @@ gst_mpp_jpeg_enc_set_format (GstVideoEncoder * encoder,
 {
   GstMppJpegEnc *self = GST_MPP_JPEG_ENC (encoder);
   GstMppVideoEnc *mpp_video_enc = GST_MPP_VIDEO_ENC (encoder);
-  MppEncCodecCfg codec_cfg;
-  MppEncRcCfg rc_cfg;
 
-  memset (&rc_cfg, 0, sizeof (rc_cfg));
-  memset (&codec_cfg, 0, sizeof (codec_cfg));
+  GST_OBJECT_LOCK (self);
 
-  rc_cfg.change = MPP_ENC_RC_CFG_CHANGE_ALL;
-  rc_cfg.rc_mode = MPP_ENC_RC_MODE_CBR;
-  rc_cfg.quality = MPP_ENC_RC_QUALITY_MEDIUM;
-
-  rc_cfg.fps_in_flex = 0;
-  rc_cfg.fps_in_num = GST_VIDEO_INFO_FPS_N (&state->info);
-  rc_cfg.fps_in_denorm = GST_VIDEO_INFO_FPS_D (&state->info);
-  rc_cfg.fps_out_flex = 0;
-  rc_cfg.fps_out_num = GST_VIDEO_INFO_FPS_N (&state->info);
-  rc_cfg.fps_out_denorm = GST_VIDEO_INFO_FPS_D (&state->info);
-  rc_cfg.gop = GST_VIDEO_INFO_FPS_N (&state->info)
+  self->rc_cfg.fps_in_num = GST_VIDEO_INFO_FPS_N (&state->info);
+  self->rc_cfg.fps_in_denorm = GST_VIDEO_INFO_FPS_D (&state->info);
+  self->rc_cfg.fps_out_num = GST_VIDEO_INFO_FPS_N (&state->info);
+  self->rc_cfg.fps_out_denorm = GST_VIDEO_INFO_FPS_D (&state->info);
+  self->rc_cfg.gop = GST_VIDEO_INFO_FPS_N (&state->info)
       / GST_VIDEO_INFO_FPS_D (&state->info);
-  rc_cfg.skip_cnt = 0;
+  self->rc_cfg.skip_cnt = 0;
 
-
-  if (mpp_video_enc->mpi->control (mpp_video_enc->mpp_ctx, MPP_ENC_SET_RC_CFG,
-          &rc_cfg)) {
-    GST_DEBUG_OBJECT (self, "Setting rate control for rockchip mpp failed");
-    return FALSE;
-  }
-
-  codec_cfg.coding = MPP_VIDEO_CodingMJPEG;
-  codec_cfg.jpeg.quant = 10;
-  codec_cfg.jpeg.change = MPP_ENC_JPEG_CFG_CHANGE_QP;
-
-  if (mpp_video_enc->mpi->control (mpp_video_enc->mpp_ctx,
-          MPP_ENC_SET_CODEC_CFG, &codec_cfg)) {
-    GST_DEBUG_OBJECT (self, "Setting codec info for rockchip mpp failed");
-    return FALSE;
-  }
-
+  GST_OBJECT_UNLOCK (self);
   return GST_MPP_VIDEO_ENC_CLASS (parent_class)->set_format (encoder, state);
+set_format_error:
+  GST_OBJECT_UNLOCK (self);
+  return FALSE;
 }
 
 static GstFlowReturn
@@ -147,6 +142,28 @@ gst_mpp_jpeg_enc_handle_frame (GstVideoEncoder * encoder,
 static void
 gst_mpp_jpeg_enc_init (GstMppJpegEnc * self)
 {
+  GST_OBJECT_LOCK (self);
+  memset (&self->rc_cfg, 0, sizeof (self->rc_cfg));
+  memset (&self->codec_cfg, 0, sizeof (self->codec_cfg));
+
+  self->rc_cfg.change = MPP_ENC_RC_CFG_CHANGE_ALL;
+  self->rc_cfg.rc_mode = MPP_ENC_RC_MODE_CBR;
+  self->rc_cfg.quality = MPP_ENC_RC_QUALITY_MEDIUM;
+
+  self->rc_cfg.fps_in_flex = 0;
+  self->rc_cfg.fps_in_num = 30;
+  self->rc_cfg.fps_in_denorm = 1;
+  self->rc_cfg.fps_out_flex = 0;
+  self->rc_cfg.fps_out_num = 30;
+  self->rc_cfg.fps_out_denorm = 1;
+  self->rc_cfg.gop = 30;
+  self->rc_cfg.skip_cnt = 0;
+
+  self->codec_cfg.coding = MPP_VIDEO_CodingMJPEG;
+  self->codec_cfg.jpeg.quant = JPEG_DEFAULT_QUALITY;
+  self->codec_cfg.jpeg.change = MPP_ENC_JPEG_CFG_CHANGE_QP;
+
+  GST_OBJECT_UNLOCK (self);
 }
 
 static void
@@ -157,6 +174,12 @@ gst_mpp_jpeg_enc_class_init (GstMppJpegEncClass * klass)
 
   element_class = (GstElementClass *) klass;
   video_encoder_class = (GstVideoEncoderClass *) klass;
+
+  g_object_class_install_property (gobject_class, PROP_QUALITY,
+      g_param_spec_int ("quality", "Quality", "Quality of encoding",
+          0, 100, JPEG_DEFAULT_QUALITY,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS |
+          GST_PARAM_MUTABLE_PLAYING));
 
   gst_element_class_set_static_metadata (element_class,
       "Rockchip Mpp JPEG Encoder",
@@ -174,4 +197,27 @@ gst_mpp_jpeg_enc_class_init (GstMppJpegEncClass * klass)
       gst_static_pad_template_get (&gst_mpp_jpeg_enc_src_template));
   gst_element_class_add_pad_template (element_class,
       gst_static_pad_template_get (&gst_mpp_jpeg_enc_sink_template));
+}
+
+static void
+gst_mpp_jpeg_enc_set_property  (GObject * object, guint prop_id,
+    const GValue * value, GParamSpec * pspec)
+{
+  GstMppJpegEnc *self = GST_MPP_JPEG_ENC (encoder);
+  GST_OBJECT_LOCK (self);
+
+  switch (prop_id) {
+    case PROP_QUALITY:
+      self->codec_cfg.jpeg.quant = g_value_get_int (value);
+      if (mpp_video_enc->mpi->control (mpp_video_enc->mpp_ctx,
+          MPP_ENC_SET_CODEC_CFG, &self->codec_cfg)) {
+        GST_DEBUG_OBJECT (self, "Setting codec info for rockchip mpp failed");
+      }
+      break;
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+      break;
+  }
+
+  GST_OBJECT_UNLOCK (self);
 }

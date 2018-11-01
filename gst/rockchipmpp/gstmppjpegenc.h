@@ -41,6 +41,8 @@ typedef struct _GstMppJpegEncClass GstMppJpegEncClass;
 struct _GstMppJpegEnc
 {
   GstMppVideoEnc parent;
+  MppEncCodecCfg codec_cfg;
+  MppEncRcCfg rc_cfg;
 };
 
 struct _GstMppJpegEncClass
