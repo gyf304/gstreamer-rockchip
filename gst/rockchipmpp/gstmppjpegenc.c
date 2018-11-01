@@ -214,12 +214,6 @@ gst_mpp_jpeg_enc_class_init (GstMppJpegEncClass * klass)
   element_class = (GstElementClass *) klass;
   video_encoder_class = (GstVideoEncoderClass *) klass;
 
-  g_object_class_install_property (gobject_class, PROP_QUALITY,
-      g_param_spec_int ("quality", "Quality", "Quality of encoding",
-          0, 100, JPEG_DEFAULT_QUALITY,
-          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS |
-          GST_PARAM_MUTABLE_PLAYING));
-
   gst_element_class_set_static_metadata (element_class,
       "Rockchip Mpp JPEG Encoder",
       "Codec/Encoder/Video",
@@ -235,6 +229,12 @@ gst_mpp_jpeg_enc_class_init (GstMppJpegEncClass * klass)
       GST_DEBUG_FUNCPTR (gst_mpp_jpeg_enc_set_property);
   gobject_class->get_property =
       GST_DEBUG_FUNCPTR (gst_mpp_jpeg_enc_get_property);
+
+  g_object_class_install_property (gobject_class, PROP_QUALITY,
+      g_param_spec_int ("quality", "Quality", "Quality of encoding",
+          0, 100, JPEG_DEFAULT_QUALITY,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS |
+          GST_PARAM_MUTABLE_PLAYING));
 
   gst_element_class_add_pad_template (element_class,
       gst_static_pad_template_get (&gst_mpp_jpeg_enc_src_template));
