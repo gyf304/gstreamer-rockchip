@@ -109,7 +109,6 @@ gst_mpp_jpeg_enc_set_format (GstVideoEncoder * encoder,
     GstVideoCodecState * state)
 {
   GstMppJpegEnc *self = GST_MPP_JPEG_ENC (encoder);
-  GstMppVideoEnc *mpp_video_enc = GST_MPP_VIDEO_ENC (encoder);
 
   GST_OBJECT_LOCK (self);
 
@@ -138,6 +137,46 @@ gst_mpp_jpeg_enc_handle_frame (GstVideoEncoder * encoder,
 
   return GST_MPP_VIDEO_ENC_CLASS (parent_class)->handle_frame (encoder, frame,
       outcaps);
+}
+
+
+static void
+gst_mpp_jpeg_enc_set_property  (GObject * object, guint prop_id,
+    const GValue * value, GParamSpec * pspec)
+{
+  GstMppJpegEnc *self = GST_MPP_JPEG_ENC (object);
+  GST_OBJECT_LOCK (self);
+
+  switch (prop_id) {
+    case PROP_QUALITY:
+      self->codec_cfg.jpeg.quant = g_value_get_int (value);
+      break;
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+      break;
+  }
+
+  GST_OBJECT_UNLOCK (self);
+}
+
+
+static void
+gst_mpp_jpeg_enc_get_property (GObject * object, guint prop_id, GValue * value,
+    GParamSpec * pspec)
+{
+  GstJpegEnc *self = GST_MPP_JPEG_ENC (object);
+  GST_OBJECT_LOCK (self);
+
+  switch (prop_id) {
+    case PROP_QUALITY:
+      g_value_set_int (value, self->codec_cfg.jpeg.quant);
+      break;
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+      break;
+  }
+
+  GST_OBJECT_UNLOCK (self);
 }
 
 static void
@@ -195,32 +234,13 @@ gst_mpp_jpeg_enc_class_init (GstMppJpegEncClass * klass)
       GST_DEBUG_FUNCPTR (gst_mpp_jpeg_enc_set_format);
   video_encoder_class->handle_frame =
       GST_DEBUG_FUNCPTR (gst_mpp_jpeg_enc_handle_frame);
+  video_encoder_class->set_property =
+      GST_DEBUG_FUNCPTR (gst_mpp_jpeg_enc_set_property);
+  video_encoder_class->get_property =
+      GST_DEBUG_FUNCPTR (gst_mpp_jpeg_enc_get_property);
 
   gst_element_class_add_pad_template (element_class,
       gst_static_pad_template_get (&gst_mpp_jpeg_enc_src_template));
   gst_element_class_add_pad_template (element_class,
       gst_static_pad_template_get (&gst_mpp_jpeg_enc_sink_template));
-}
-
-static void
-gst_mpp_jpeg_enc_set_property  (GObject * object, guint prop_id,
-    const GValue * value, GParamSpec * pspec)
-{
-  GstMppJpegEnc *self = GST_MPP_JPEG_ENC (object);
-  GST_OBJECT_LOCK (self);
-
-  switch (prop_id) {
-    case PROP_QUALITY:
-      self->codec_cfg.jpeg.quant = g_value_get_int (value);
-      if (mpp_video_enc->mpi->control (mpp_video_enc->mpp_ctx,
-          MPP_ENC_SET_CODEC_CFG, &self->codec_cfg)) {
-        GST_DEBUG_OBJECT (self, "Setting codec info for rockchip mpp failed");
-      }
-      break;
-    default:
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
-      break;
-  }
-
-  GST_OBJECT_UNLOCK (self);
 }
