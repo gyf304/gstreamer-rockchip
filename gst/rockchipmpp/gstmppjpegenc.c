@@ -25,7 +25,7 @@
 
 #include "gstmppjpegenc.h"
 
-#define JPEG_DEFAULT_QUALITY 85
+#define JPEG_DEFAULT_QUALITY 80
 
 enum
 {
@@ -199,7 +199,7 @@ gst_mpp_jpeg_enc_init (GstMppJpegEnc * self)
   self->rc_cfg.skip_cnt = 0;
 
   self->codec_cfg.coding = MPP_VIDEO_CodingMJPEG;
-  self->codec_cfg.jpeg.quant = JPEG_DEFAULT_QUALITY;
+  self->codec_cfg.jpeg.quant = JPEG_DEFAULT_QUALITY / 10;
   self->codec_cfg.jpeg.change = MPP_ENC_JPEG_CFG_CHANGE_QP;
 
   GST_OBJECT_UNLOCK (self);
