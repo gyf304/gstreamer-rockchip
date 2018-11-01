@@ -122,9 +122,6 @@ gst_mpp_jpeg_enc_set_format (GstVideoEncoder * encoder,
 
   GST_OBJECT_UNLOCK (self);
   return GST_MPP_VIDEO_ENC_CLASS (parent_class)->set_format (encoder, state);
-set_format_error:
-  GST_OBJECT_UNLOCK (self);
-  return FALSE;
 }
 
 static GstFlowReturn
@@ -164,7 +161,7 @@ static void
 gst_mpp_jpeg_enc_get_property (GObject * object, guint prop_id, GValue * value,
     GParamSpec * pspec)
 {
-  GstJpegEnc *self = GST_MPP_JPEG_ENC (object);
+  GstMppJpegEnc *self = GST_MPP_JPEG_ENC (object);
   GST_OBJECT_LOCK (self);
 
   switch (prop_id) {
@@ -234,9 +231,9 @@ gst_mpp_jpeg_enc_class_init (GstMppJpegEncClass * klass)
       GST_DEBUG_FUNCPTR (gst_mpp_jpeg_enc_set_format);
   video_encoder_class->handle_frame =
       GST_DEBUG_FUNCPTR (gst_mpp_jpeg_enc_handle_frame);
-  video_encoder_class->set_property =
+  gobject_class->set_property =
       GST_DEBUG_FUNCPTR (gst_mpp_jpeg_enc_set_property);
-  video_encoder_class->get_property =
+  gobject_class->get_property =
       GST_DEBUG_FUNCPTR (gst_mpp_jpeg_enc_get_property);
 
   gst_element_class_add_pad_template (element_class,
