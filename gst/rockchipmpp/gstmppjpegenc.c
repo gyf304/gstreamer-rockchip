@@ -79,10 +79,24 @@ GST_STATIC_PAD_TEMPLATE ("src",
 static gboolean
 gst_mpp_jpeg_enc_open (GstVideoEncoder * encoder)
 {
-  GstMppJpegEnc *self = GST_MPP_JPEG_ENC (encoder);
   GstMppVideoEnc *mpp_video_enc = GST_MPP_VIDEO_ENC (encoder);
 
   GST_DEBUG_OBJECT (mpp_video_enc, "Opening");
+
+  if (mpp_create (&mpp_video_enc->mpp_ctx, &mpp_video_enc->mpi))
+    return FALSE;
+
+  if (mpp_init (mpp_video_enc->mpp_ctx, MPP_CTX_ENC, MPP_VIDEO_CodingMJPEG))
+    return FALSE;
+
+  return TRUE;
+}
+
+static gboolean
+gst_mpp_jpeg_enc_start (GstVideoEncoder * encoder)
+{
+  GstMppJpegEnc *self = GST_MPP_JPEG_ENC (encoder);
+  GstMppVideoEnc *mpp_video_enc = GST_MPP_VIDEO_ENC (encoder);
 
   if (mpp_video_enc->mpi->control (mpp_video_enc->mpp_ctx, MPP_ENC_SET_RC_CFG,
           &self->rc_cfg)) {
@@ -95,11 +109,6 @@ gst_mpp_jpeg_enc_open (GstVideoEncoder * encoder)
     GST_DEBUG_OBJECT (self, "Setting codec info for rockchip mpp failed");
     return FALSE;
   }
-
-  if (mpp_create (&mpp_video_enc->mpp_ctx, &mpp_video_enc->mpi))
-    return FALSE;
-  if (mpp_init (mpp_video_enc->mpp_ctx, MPP_CTX_ENC, MPP_VIDEO_CodingMJPEG))
-    return FALSE;
 
   return TRUE;
 }
@@ -221,6 +230,7 @@ gst_mpp_jpeg_enc_class_init (GstMppJpegEncClass * klass)
       "Randy Li <randy.li@rock-chips.com>");
 
   video_encoder_class->open = GST_DEBUG_FUNCPTR (gst_mpp_jpeg_enc_open);
+  video_encoder_class->start = GST_DEBUG_FUNCPTR (gst_mpp_jpeg_enc_start);
   video_encoder_class->set_format =
       GST_DEBUG_FUNCPTR (gst_mpp_jpeg_enc_set_format);
   video_encoder_class->handle_frame =
