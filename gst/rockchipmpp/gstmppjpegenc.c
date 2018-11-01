@@ -93,10 +93,23 @@ gst_mpp_jpeg_enc_open (GstVideoEncoder * encoder)
 }
 
 static gboolean
-gst_mpp_jpeg_enc_start (GstVideoEncoder * encoder)
+gst_mpp_jpeg_enc_set_format (GstVideoEncoder * encoder,
+    GstVideoCodecState * state)
 {
   GstMppJpegEnc *self = GST_MPP_JPEG_ENC (encoder);
   GstMppVideoEnc *mpp_video_enc = GST_MPP_VIDEO_ENC (encoder);
+
+  GST_OBJECT_LOCK (self);
+
+  self->rc_cfg.fps_in_num = GST_VIDEO_INFO_FPS_N (&state->info);
+  self->rc_cfg.fps_in_denorm = GST_VIDEO_INFO_FPS_D (&state->info);
+  self->rc_cfg.fps_out_num = GST_VIDEO_INFO_FPS_N (&state->info);
+  self->rc_cfg.fps_out_denorm = GST_VIDEO_INFO_FPS_D (&state->info);
+  self->rc_cfg.gop = GST_VIDEO_INFO_FPS_N (&state->info)
+      / GST_VIDEO_INFO_FPS_D (&state->info);
+  self->rc_cfg.skip_cnt = 0;
+
+  GST_OBJECT_UNLOCK (self);
 
   if (mpp_video_enc->mpi->control (mpp_video_enc->mpp_ctx, MPP_ENC_SET_RC_CFG,
           &self->rc_cfg)) {
@@ -110,26 +123,6 @@ gst_mpp_jpeg_enc_start (GstVideoEncoder * encoder)
     return FALSE;
   }
 
-  return TRUE;
-}
-
-static gboolean
-gst_mpp_jpeg_enc_set_format (GstVideoEncoder * encoder,
-    GstVideoCodecState * state)
-{
-  GstMppJpegEnc *self = GST_MPP_JPEG_ENC (encoder);
-
-  GST_OBJECT_LOCK (self);
-
-  self->rc_cfg.fps_in_num = GST_VIDEO_INFO_FPS_N (&state->info);
-  self->rc_cfg.fps_in_denorm = GST_VIDEO_INFO_FPS_D (&state->info);
-  self->rc_cfg.fps_out_num = GST_VIDEO_INFO_FPS_N (&state->info);
-  self->rc_cfg.fps_out_denorm = GST_VIDEO_INFO_FPS_D (&state->info);
-  self->rc_cfg.gop = GST_VIDEO_INFO_FPS_N (&state->info)
-      / GST_VIDEO_INFO_FPS_D (&state->info);
-  self->rc_cfg.skip_cnt = 0;
-
-  GST_OBJECT_UNLOCK (self);
   return GST_MPP_VIDEO_ENC_CLASS (parent_class)->set_format (encoder, state);
 }
 
@@ -155,7 +148,7 @@ gst_mpp_jpeg_enc_set_property  (GObject * object, guint prop_id,
 
   switch (prop_id) {
     case PROP_QUALITY:
-      self->codec_cfg.jpeg.quant = g_value_get_int (value);
+      self->codec_cfg.jpeg.quant = g_value_get_int (value) / 10;
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -175,7 +168,7 @@ gst_mpp_jpeg_enc_get_property (GObject * object, guint prop_id, GValue * value,
 
   switch (prop_id) {
     case PROP_QUALITY:
-      g_value_set_int (value, self->codec_cfg.jpeg.quant);
+      g_value_set_int (value, self->codec_cfg.jpeg.quant * 10);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -230,7 +223,6 @@ gst_mpp_jpeg_enc_class_init (GstMppJpegEncClass * klass)
       "Randy Li <randy.li@rock-chips.com>");
 
   video_encoder_class->open = GST_DEBUG_FUNCPTR (gst_mpp_jpeg_enc_open);
-  video_encoder_class->start = GST_DEBUG_FUNCPTR (gst_mpp_jpeg_enc_start);
   video_encoder_class->set_format =
       GST_DEBUG_FUNCPTR (gst_mpp_jpeg_enc_set_format);
   video_encoder_class->handle_frame =
@@ -243,8 +235,7 @@ gst_mpp_jpeg_enc_class_init (GstMppJpegEncClass * klass)
   g_object_class_install_property (gobject_class, PROP_QUALITY,
       g_param_spec_int ("quality", "Quality", "Quality of encoding",
           0, 100, JPEG_DEFAULT_QUALITY,
-          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS |
-          GST_PARAM_MUTABLE_PLAYING));
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS ));
 
   gst_element_class_add_pad_template (element_class,
       gst_static_pad_template_get (&gst_mpp_jpeg_enc_src_template));
