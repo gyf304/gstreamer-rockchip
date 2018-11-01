@@ -79,6 +79,7 @@ GST_STATIC_PAD_TEMPLATE ("src",
 static gboolean
 gst_mpp_jpeg_enc_open (GstVideoEncoder * encoder)
 {
+  GstMppJpegEnc *self = GST_MPP_JPEG_ENC (encoder);
   GstMppVideoEnc *mpp_video_enc = GST_MPP_VIDEO_ENC (encoder);
 
   GST_DEBUG_OBJECT (mpp_video_enc, "Opening");
@@ -169,9 +170,11 @@ gst_mpp_jpeg_enc_init (GstMppJpegEnc * self)
 static void
 gst_mpp_jpeg_enc_class_init (GstMppJpegEncClass * klass)
 {
+  GObjectClass *gobject_class;
   GstElementClass *element_class;
   GstVideoEncoderClass *video_encoder_class;
 
+  gobject_class = (GObjectClass *) klass;
   element_class = (GstElementClass *) klass;
   video_encoder_class = (GstVideoEncoderClass *) klass;
 
@@ -203,7 +206,7 @@ static void
 gst_mpp_jpeg_enc_set_property  (GObject * object, guint prop_id,
     const GValue * value, GParamSpec * pspec)
 {
-  GstMppJpegEnc *self = GST_MPP_JPEG_ENC (encoder);
+  GstMppJpegEnc *self = GST_MPP_JPEG_ENC (object);
   GST_OBJECT_LOCK (self);
 
   switch (prop_id) {
