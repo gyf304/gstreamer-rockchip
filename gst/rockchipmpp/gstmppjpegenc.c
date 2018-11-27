@@ -148,7 +148,11 @@ gst_mpp_jpeg_enc_set_property  (GObject * object, guint prop_id,
 
   switch (prop_id) {
     case PROP_QUALITY:
-      self->codec_cfg.jpeg.quant = g_value_get_int (value) / 10;
+      self->codec_cfg.jpeg.quant = (g_value_get_int (value) + 5) / 10;
+      if (self->codec_cfg.jpeg.quant <= 0)
+        self->codec_cfg.jpeg.quant = 1;
+      if (self->codec_cfg.jpeg.quant > 10)
+        self->codec_cfg.jpeg.quant = 10;
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
